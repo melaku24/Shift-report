@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14213d">
+<title>Shift Report</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --navy:#14213d; --navy2:#1d2f55; --amber:#f59e0b; --bg:#f2f4f7; --card:#fff;
+  --text:#1b2433; --muted:#667085; --line:#e1e5ec;
+  --red:#c62828; --redbg:#fdecec; --green:#2e7d32; --greenbg:#e8f5e9; --amberbg:#fff4de; --amberdk:#8a5a00;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+header.top{position:sticky;top:0;z-index:5;background:var(--navy);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+header.top h1{margin:0;font-size:18px;line-height:1.1}
+header.top small{opacity:.75;font-size:13px}
+main{padding:12px 16px 110px;max-width:640px;margin:0 auto}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;background:#fff;border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+nav.tabs button{flex:1;border:0;background:none;padding:10px 4px 9px;font-size:13px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
+nav.tabs button .ic{font-size:20px;line-height:1}
+nav.tabs button.on{color:var(--navy);font-weight:600}
+nav.tabs button.on::before{content:"";position:absolute;top:0;left:25%;right:25%;height:3px;background:var(--amber);border-radius:0 0 3px 3px}
+.badge{position:absolute;top:4px;left:calc(50% + 8px);background:var(--red);color:#fff;border-radius:10px;font-size:11px;min-width:18px;padding:0 5px;line-height:18px;font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:0 0 12px}
+.card h2{margin:0 0 10px;font-size:15px;color:var(--navy)}
+label{display:block;font-size:14px;color:var(--muted);margin:0 0 12px}
+label>input,label>select,label>textarea{display:block;width:100%;margin-top:4px;padding:11px 12px;border:1px solid #c9cfda;border-radius:10px;background:#fff;font-size:16px;color:var(--text)}
+label>textarea{min-height:84px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--amber);outline-offset:0;border-color:var(--amber)}
+.row{display:flex;gap:10px}.row>*{flex:1;min-width:0}
+.between{justify-content:space-between;align-items:center}
+.btn{border:1px solid #c9cfda;background:#fff;border-radius:10px;padding:12px 16px;font-weight:600;font-size:16px;min-height:48px;width:100%}
+.btn.primary{background:var(--navy);color:#fff;border-color:var(--navy)}
+.btn.add{border:2px dashed var(--amber);color:var(--amberdk);background:var(--amberbg)}
+.btn.danger{color:var(--red);border-color:#e6b0b0}
+.btn.small{width:auto;min-height:36px;padding:6px 12px;font-size:14px}
+.btn:disabled{opacity:.45}
+.btn.big{min-height:54px;font-size:17px}
+.empty{color:var(--muted);font-size:14px;margin:4px 0 12px}
+.pill{font-size:12px;font-weight:600;padding:6px 10px;border-radius:14px;border:0;white-space:nowrap}
+.pill.ok{background:#e8f5e9;color:var(--green)}
+.pill.off{background:var(--redbg);color:var(--red)}
+.pill.wait{background:var(--amberbg);color:var(--amberdk)}
+.pill.sync{background:#e3edff;color:#1c4fb5}
+.job{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 10px;background:#fcfcfd}
+.job .t{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.job .eq{font-weight:600}
+.job .d{margin:4px 0;font-size:14px;white-space:pre-wrap;word-break:break-word}
+.job .m{font-size:12.5px;color:var(--muted)}
+.tag{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:10px;background:#eef1f6;color:#445}
+.tag.bd{background:var(--redbg);color:var(--red)}
+.tag.ongoing{background:var(--amberbg);color:var(--amberdk)}
+.tag.waiting{background:#fde7d3;color:#9a3d00}
+.tag.done{background:var(--greenbg);color:var(--green)}
+.tag.local{background:#e3edff;color:#1c4fb5}
+.actions{display:flex;gap:8px;margin-top:8px}
+.mach{padding:0;overflow:hidden}
+.mach>button.head{width:100%;text-align:left;border:0;background:none;padding:14px;display:block}
+.mach .nm{font-weight:700;font-size:16px}
+.mach .ar{font-size:13px;color:var(--muted)}
+.chips{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.chip{border-radius:10px;padding:6px 10px;background:#eef1f6;font-size:13px}
+.chip b{font-size:16px;display:block}
+.chip.bad{background:var(--redbg);color:var(--red)}
+.chip.warn{background:var(--amberbg);color:var(--amberdk)}
+.chip.good{background:var(--greenbg);color:var(--green)}
+.mach .body{padding:0 14px 14px;border-top:1px solid var(--line)}
+.mach h3{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 8px}
+.seg{display:flex;background:#e4e8ef;border-radius:10px;padding:3px;gap:3px}
+.seg button{flex:1;border:0;background:none;border-radius:8px;padding:7px;font-size:14px;color:var(--muted)}
+.seg button.on{background:#fff;color:var(--navy);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.sum{display:flex;justify-content:space-between;align-items:center;margin:4px 0 12px;font-size:14px;color:var(--muted)}
+.sum b{color:var(--text)}
+.login{max-width:380px;margin:0 auto;padding:calc(48px + env(safe-area-inset-top)) 24px 24px}
+.login h1{margin:0;color:var(--navy)}
+.login .sub{color:var(--muted);margin:4px 0 24px}
+.err{color:var(--red);min-height:22px;font-size:14px;margin:0 0 8px}
+.hint{color:var(--muted);font-size:13px;text-align:center;margin-top:14px}
+#modal .back{position:fixed;inset:0;z-index:20;background:rgba(10,15,30,.55);display:flex;align-items:flex-end;justify-content:center}
+#modal .sheet{background:var(--bg);width:100%;max-width:640px;max-height:94vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column}
+#modal .sheet header{padding:14px 16px;background:#fff;border-radius:16px 16px 0 0;border-bottom:1px solid var(--line);font-weight:700;color:var(--navy)}
+#modal .sheet .scroll{overflow:auto;padding:14px 16px;flex:1}
+#modal .sheet footer{display:flex;gap:10px;padding:10px 16px calc(10px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid var(--line)}
+.opts{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 14px}
+.opt{position:relative}
+.opt input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0}
+.opt span{display:block;padding:10px 14px;border:1px solid #c9cfda;border-radius:22px;background:#fff;font-size:15px}
+.opt input:checked+span{background:var(--navy);color:#fff;border-color:var(--navy)}
+.opt input:focus-visible+span{outline:2px solid var(--amber)}
+.fieldlbl{font-size:14px;color:var(--muted);margin-top:2px}
+.invalid{outline:2px solid var(--red)!important;border-color:var(--red)!important}
+#toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#202938;color:#fff;padding:10px 16px;border-radius:22px;font-size:14px;z-index:40;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center}
+#toast.show{opacity:1}
+.sent-row{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.status-ok{color:var(--green);font-weight:600;font-size:13px}
+.status-wait{color:var(--amberdk);font-weight:600;font-size:13px}
+.status-err{color:var(--red);font-weight:600;font-size:13px}
+.note{font-size:13px;color:var(--muted);margin:2px 0 12px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="modal"></div>
+<div id="toast" role="status"></div>
+<script src="config.js"></script>
+<script>
+'use strict';
+/* ============ constants & helpers ============ */
+const KEY = 'shiftreport_v1';
+const TYPES = ['Breakdown', 'Planned maintenance', 'Unplanned maintenance', 'Concern'];
+const STATUSES = ['Completed', 'Ongoing', 'Waiting for parts'];
+const SHIFTS = ['Morning', 'Afternoon', 'Night'];
+const BATCH = 40;
+
+const $ = (s, el) => (el || document).querySelector(s);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = (n) => String(n).padStart(2, '0');
+const ymd = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const todayStr = () => ymd(new Date());
+const daysAgoStr = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return ymd(d); };
+const norm = (s) => String(s == null ? '' : s).trim().toLowerCase().replace(/\s+/g, ' ');
+const uid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+const statusClass = (s) => s === 'Completed' ? 'done' : s === 'Ongoing' ? 'ongoing' : 'waiting';
+const fmtHrs = (n) => (Math.round(n * 10) / 10).toString();
+
+/* ============ state ============ */
+function blank() {
+  return { user: null, machines: [], data: { jobs: [], at: null }, draft: { date: '', shift: '', jobs: [] }, queue: [], lastLogin: '' };
+}
+let S;
+try { S = Object.assign(blank(), JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { S = blank(); }
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* storage full or blocked */ } }
+
+const UI = { tab: 'report', open: {}, range: 30, online: navigator.onLine, failed: false, syncing: false, loginErr: '', modalOpen: false };
+
+if (!S.draft.date || (S.draft.jobs.length === 0 && S.draft.date !== todayStr())) S.draft.date = todayStr();
+
+const pendingItems = () => S.queue.filter((q) => q.status === 'pending' && S.user && q.owner === S.user.name);
+const pendingCount = () => pendingItems().length;
+
+/* ============ network ============ */
+async function api(body) {
+  const url = (window.APP_CONFIG || {}).API_URL || '';
+  if (!/^https?:\/\//.test(url)) throw Object.assign(new Error('The app is not connected yet (API_URL missing in config.js).'), { config: true });
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 40000);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // keeps it a "simple" request (no CORS preflight)
+      body: JSON.stringify(body),
+      redirect: 'follow',
+      signal: ctl.signal
+    });
+    const text = await res.text();
+    try { return JSON.parse(text); } catch (e) { throw new Error('Bad reply from server'); }
+  } finally { clearTimeout(timer); }
+}
+
+async function sync() {
+  if (!S.user || UI.syncing) return;
+  const jobs = pendingItems().filter((q) => q.kind === 'job').slice(0, BATCH);
+  const ups = pendingItems().filter((q) => q.kind === 'update').slice(0, BATCH);
+  UI.syncing = true; render();
+  let progressed = 0;
+  try {
+    const res = await api({
+      action: 'sync', name: S.user.name, pin: S.user.pin,
+      jobs: jobs.map((q) => q.job),
+      updates: ups.map((q) => Object.assign({ qid: q.qid }, q.upd))
+    });
+    UI.failed = false;
+    if (!res.ok) {
+      if (res.code === 'AUTH') { UI.loginErr = res.error || 'Please sign in again.'; S.lastLogin = S.user.name; S.user = null; }
+      else toast(res.error || 'Server error');
+    } else {
+      const jr = {}; (res.results.jobs || []).forEach((r) => { jr[r.id] = r; });
+      const ur = {}; (res.results.updates || []).forEach((r) => { ur[r.qid] = r; });
+      jobs.forEach((q) => { const r = jr[q.job.id]; if (r) { q.status = r.ok ? 'sent' : 'error'; q.error = r.error || ''; q.sentAt = Date.now(); progressed++; } });
+      ups.forEach((q) => { const r = ur[q.qid]; if (r) { q.status = r.ok ? 'sent' : 'error'; q.error = r.error || ''; q.sentAt = Date.now(); progressed++; } });
+      S.machines = res.machines || S.machines;
+      S.data = { jobs: res.data.jobs || [], at: Date.now() };
+      const sent = S.queue.filter((q) => q.status === 'sent').sort((a, b) => b.sentAt - a.sentAt);
+      const drop = new Set(sent.slice(30).map((q) => q.qid));
+      S.queue = S.queue.filter((q) => !drop.has(q.qid));
+    }
+  } catch (e) {
+    UI.failed = true;
+    if (e.config) toast(e.message);
+  }
+  UI.syncing = false; save(); render();
+  if (progressed > 0 && pendingCount() > 0) sync();
+}
+
+/* ============ small UI utils ============ */
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+/* ============ rendering ============ */
+function render() {
+  const y = window.scrollY;
+  if (!S.user) { renderLogin(); return; }
+  const pend = pendingCount();
+  const offline = !UI.online || UI.failed;
+  let pill;
+  if (UI.syncing) pill = '<button class="pill sync" data-act="sync">Uploading…</button>';
+  else if (offline) pill = `<button class="pill off" data-act="sync">Offline${pend ? ' · ' + pend + ' waiting' : ''}</button>`;
+  else if (pend) pill = `<button class="pill wait" data-act="sync">${pend} waiting · tap to upload</button>`;
+  else pill = '<button class="pill ok" data-act="sync">Online</button>';
+
+  const errCount = S.queue.filter((q) => q.status === 'error' && q.owner === S.user.name).length;
+  const tabs = [['report', '📝', 'Report'], ['machines', '🔧', 'My machines'], ['sent', '📤', 'Sent']];
+  const body = UI.tab === 'report' ? tabReport() : UI.tab === 'machines' ? tabMachines() : tabSent();
+
+  $('#app').innerHTML = `
+    <header class="top"><div><h1>Shift Report</h1><small>${esc(S.user.name)}</small></div>${pill}</header>
+    <main>${body}</main>
+    <nav class="tabs">${tabs.map(([k, ic, lb]) => `
+      <button data-act="tab" data-tab="${k}" class="${UI.tab === k ? 'on' : ''}"><span class="ic">${ic}</span>${lb}
+      ${k === 'sent' && (pend + errCount) ? `<span class="badge">${pend + errCount}</span>` : ''}</button>`).join('')}
+    </nav>`;
+  window.scrollTo(0, y);
+}
+
+function renderLogin() {
+  $('#app').innerHTML = `
+    <div class="login">
+      <h1>Shift Report</h1>
+      <p class="sub">Sign in with your name and PIN</p>
+      <label>Name<input id="ln" autocomplete="username" autocapitalize="words" value="${esc(S.lastLogin)}"></label>
+      <label>PIN<input id="lp" type="password" inputmode="numeric" autocomplete="current-password"></label>
+      <div class="err" id="lerr">${esc(UI.loginErr)}</div>
+      <button class="btn primary big" data-act="login" id="lgo">Sign in</button>
+      <p class="hint">The first sign-in needs internet. After that the app also works offline.</p>
+    </div>`;
+}
+
+function jobCard(j, idx) {
+  const time = (j.start || j.end) ? `${esc(j.start || '?')}–${esc(j.end || '?')}` : '';
+  const down = j.downtime !== '' && j.downtime != null ? `${fmtHrs(Number(j.downtime))} h downtime` : '';
+  return `<div class="job">
+    <div class="t"><div><div class="eq">${esc(j.equipment)}</div></div>
+      <div><span class="tag ${j.type === 'Breakdown' ? 'bd' : ''}">${esc(j.type)}</span> <span class="tag ${statusClass(j.status)}">${esc(j.status)}</span></div></div>
+    <div class="d">${esc(j.description)}</div>
+    <div class="m">${[time, down, j.machineHours !== '' && j.machineHours != null ? fmtHrs(Number(j.machineHours)) + ' machine h' : '', j.mechanics ? 'Mechanic: ' + esc(j.mechanics) : '', j.cause ? 'Cause: ' + esc(j.cause) : ''].filter(Boolean).join(' · ')}</div>
+    <div class="actions"><button class="btn small" data-act="editjob" data-i="${idx}">Edit</button>
+      <button class="btn small danger" data-act="deljob" data-i="${idx}">Remove</button></div></div>`;
+}
+
+function tabReport() {
+  const d = S.draft, n = d.jobs.length;
+  return `
+    <section class="card"><h2>Shift details</h2>
+      <div class="row">
+        <label>Date<input type="date" id="sdate" value="${esc(d.date)}"></label>
+        <label>Shift<select id="sshift"><option value="">Choose…</option>${SHIFTS.map((s) => `<option ${d.shift === s ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
+      </div>
+    </section>
+    <section class="card"><h2>Jobs this shift (${n})</h2>
+      ${n ? d.jobs.map(jobCard).join('') : '<p class="empty">Nothing added yet. Add every breakdown, maintenance job or concern from your shift.</p>'}
+      <button class="btn add" data-act="addjob">＋ Add job</button>
+    </section>
+    <button class="btn primary big" data-act="submit" ${n ? '' : 'disabled'}>Submit shift (${n} job${n === 1 ? '' : 's'})</button>
+    <p class="note" style="text-align:center;margin-top:10px">No signal? Submit anyway. It is saved on this phone and uploads by itself later.</p>`;
+}
+
+/* ---- machines ---- */
+function allJobs() {
+  const ids = new Set(S.data.jobs.map((j) => j.id));
+  const local = S.queue.filter((q) => q.kind === 'job' && q.status === 'pending' && q.owner === S.user.name && !ids.has(q.job.id))
+    .map((q) => Object.assign({}, q.job, { supervisor: S.user.name, local: true }));
+  return local.concat(S.data.jobs);
+}
+
+function machineView(name, area, jobs) {
+  const cutoff = daysAgoStr(UI.range);
+  const open = jobs.filter((j) => j.status !== 'Completed').sort((a, b) => (a.date < b.date ? -1 : 1));
+  const bds = jobs.filter((j) => j.type === 'Breakdown' && j.date >= cutoff).sort((a, b) => (a.date < b.date ? 1 : -1));
+  const down = bds.reduce((s, j) => s + (Number(j.downtime) || 0), 0);
+  return { name, area, open, bds, down };
+}
+
+function histRow(j, withUpdate) {
+  const down = j.downtime !== '' && j.downtime != null ? `${fmtHrs(Number(j.downtime))} h` : '';
+  return `<div class="job">
+    <div class="t"><div class="m">${esc(j.date)} · ${esc(j.shift)}</div>
+      <div><span class="tag ${j.type === 'Breakdown' ? 'bd' : ''}">${esc(j.type)}</span> <span class="tag ${statusClass(j.status)}">${esc(j.status)}</span>${j.local ? ' <span class="tag local">Not uploaded</span>' : ''}</div></div>
+    <div class="d">${esc(j.description)}</div>
+    <div class="m">${[j.supervisor ? esc(j.supervisor) : '', down ? down + ' downtime' : '', j.machineHours !== '' && j.machineHours != null ? fmtHrs(Number(j.machineHours)) + ' machine h' : '', j.mechanics ? 'Mechanic: ' + esc(j.mechanics) : '', j.cause ? 'Cause: ' + esc(j.cause) : '', j.action ? 'Action: ' + esc(j.action) : ''].filter(Boolean).join(' · ')}</div>
+    ${withUpdate ? `<div class="actions"><button class="btn small" data-act="upd" data-id="${esc(j.id)}">Update status</button></div>` : ''}</div>`;
+}
+
+function tabMachines() {
+  const jobs = allJobs();
+  const known = new Set(S.machines.map((m) => norm(m.name)));
+  const views = S.machines.map((m) => machineView(m.name, m.area, jobs.filter((j) => norm(j.equipment) === norm(m.name))));
+  const others = jobs.filter((j) => !known.has(norm(j.equipment)));
+  if (others.length) views.push(machineView('Other equipment', 'Not in your machine list', others));
+  views.sort((a, b) => (b.open.length - a.open.length) || a.name.localeCompare(b.name));
+  const totalOpen = views.reduce((s, v) => s + v.open.length, 0);
+  const upd = S.data.at ? new Date(S.data.at).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'never';
+
+  return `
+    <div class="sum"><span>Open backlog: <b>${totalOpen}</b></span><span>Updated ${esc(upd)}</span></div>
+    <div class="seg" style="margin-bottom:12px">
+      <button data-act="range" data-r="30" class="${UI.range === 30 ? 'on' : ''}">Last 30 days</button>
+      <button data-act="range" data-r="60" class="${UI.range === 60 ? 'on' : ''}">Last 60 days</button></div>
+    ${views.length ? views.map(machineCard).join('') : '<p class="empty">No machines are assigned to you yet. Ask the office to add them in the Equipment sheet.</p>'}
+    <p class="note">Backlog = any job not marked Completed (Ongoing or Waiting for parts), however old.</p>`;
+}
+
+function machineCard(v) {
+  const isOpen = !!UI.open[v.name];
+  const wait = v.open.filter((j) => j.status === 'Waiting for parts').length;
+  return `<section class="card mach">
+    <button class="head" data-act="mach" data-m="${esc(v.name)}">
+      <div class="nm">${esc(v.name)} <span style="float:right;color:var(--muted)">${isOpen ? '▲' : '▼'}</span></div>
+      <div class="ar">${esc(v.area || '')}</div>
+      <div class="chips">
+        <div class="chip ${v.open.length ? 'bad' : 'good'}"><b>${v.open.length}</b>Backlog${wait ? ` (${wait} need parts)` : ''}</div>
+        <div class="chip ${v.bds.length ? 'warn' : ''}"><b>${v.bds.length}</b>Breakdowns</div>
+        <div class="chip"><b>${fmtHrs(v.down)} h</b>Downtime</div>
+      </div></button>
+    ${isOpen ? `<div class="body">
+      <h3>Open backlog (${v.open.length})</h3>
+      ${v.open.length ? v.open.map((j) => histRow(j, true)).join('') : '<p class="empty">Nothing open. 👍</p>'}
+      <h3>Breakdowns, last ${UI.range} days (${v.bds.length})</h3>
+      ${v.bds.length ? v.bds.map((j) => histRow(j, false)).join('') : '<p class="empty">No breakdowns reported.</p>'}
+    </div>` : ''}</section>`;
+}
+
+/* ---- sent ---- */
+function tabSent() {
+  const mine = S.queue.filter((q) => q.owner === S.user.name).sort((a, b) => b.createdAt - a.createdAt);
+  const pend = pendingCount();
+  const rows = mine.map((q) => {
+    const j = q.kind === 'job' ? q.job : null;
+    const title = j ? `${esc(j.equipment)} · ${esc(j.type)}` : 'Status update';
+    const sub = j ? esc(j.description) : `${esc(q.upd.status)}${q.upd.note ? ' · ' + esc(q.upd.note) : ''}`;
+    const st = q.status === 'sent' ? '<span class="status-ok">✓ Uploaded</span>'
+      : q.status === 'pending' ? '<span class="status-wait">⏳ Saved on phone, waiting for signal</span>'
+        : `<span class="status-err">✗ Not accepted: ${esc(q.error)}</span>`;
+    const del = q.status !== 'sent' ? `<button class="btn small danger" data-act="delq" data-q="${esc(q.qid)}">Delete</button>` : '';
+    return `<div class="job"><div class="sent-row"><div><div class="eq">${title}</div><div class="d">${sub}</div>${st}
+      <div class="m">${new Date(q.createdAt).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div></div>${del}</div></div>`;
+  }).join('');
+  return `
+    ${pend ? `<button class="btn primary" data-act="sync" style="margin-bottom:12px">Upload ${pend} waiting now</button>` : ''}
+    <section class="card"><h2>Sent reports</h2>${rows || '<p class="empty">Nothing submitted yet.</p>'}</section>
+    <section class="card"><h2>Account</h2><p class="note">Signed in as <b>${esc(S.user.name)}</b></p>
+      <button class="btn danger" data-act="logout">Log out</button></section>`;
+}
+
+/* ============ modals ============ */
+function openModal(html) {
+  $('#modal').innerHTML = `<div class="back"><div class="sheet">${html}</div></div>`;
+  if (!UI.modalOpen) { UI.modalOpen = true; try { history.pushState({ m: 1 }, ''); } catch (e) { } }
+}
+function closeModal(fromPop) {
+  $('#modal').innerHTML = '';
+  if (UI.modalOpen) {
+    UI.modalOpen = false;
+    if (!fromPop) { try { if (history.state && history.state.m) history.back(); } catch (e) { } }
+  }
+}
+window.addEventListener('popstate', () => { if (UI.modalOpen) closeModal(true); });
+
+let editIdx = -1, dtManual = false;
+
+function openJobModal(idx) {
+  editIdx = idx;
+  const j = idx >= 0 ? S.draft.jobs[idx] : { type: '', equipment: '', description: '', start: '', end: '', downtime: '', machineHours: '', mechanics: '', cause: '', action: '', parts: '', status: '' };
+  const names = S.machines.map((m) => m.name);
+  const isOther = j.equipment && !names.some((n) => norm(n) === norm(j.equipment));
+  dtManual = idx >= 0 && j.downtime !== '' && j.downtime != null;
+  const eqOpts = names.map((n) => `<option value="${esc(n)}" ${!isOther && norm(n) === norm(j.equipment) ? 'selected' : ''}>${esc(n)}</option>`).join('');
+  openModal(`
+    <header>${idx >= 0 ? 'Edit job' : 'Add job'}</header>
+    <div class="scroll">
+      <div class="fieldlbl">Type of job</div>
+      <div class="opts" id="f-type">${TYPES.map((t) => `<label class="opt"><input type="radio" name="jt" value="${t}" ${j.type === t ? 'checked' : ''}><span>${t}</span></label>`).join('')}</div>
+      <label>Equipment
+        <select id="f-eq"><option value="">Choose…</option>${eqOpts}<option value="__other" ${isOther ? 'selected' : ''}>Other (not in list)…</option></select></label>
+      <label id="f-other-wrap" style="display:${isOther ? 'block' : 'none'}">Equipment name<input id="f-other" value="${isOther ? esc(j.equipment) : ''}"></label>
+      <label>What happened / what was done<textarea id="f-desc">${esc(j.description)}</textarea></label>
+      <div class="row">
+        <label>Start time<input type="time" id="f-start" value="${esc(j.start)}"></label>
+        <label>End time<input type="time" id="f-end" value="${esc(j.end)}"></label>
+      </div>
+      <label>Downtime (hours)<input type="number" id="f-down" inputmode="decimal" min="0" step="0.1" value="${esc(j.downtime)}" placeholder="Filled from start and end time"></label>
+      <label>Machine hours (hour-meter reading)<input type="number" id="f-mh" inputmode="decimal" min="0" step="0.1" value="${esc(j.machineHours)}"></label>
+      <label>Mechanic name(s)<input id="f-mech" value="${esc(j.mechanics)}" placeholder="e.g. John, Peter" autocapitalize="words"></label>
+      <label>Cause<input id="f-cause" value="${esc(j.cause)}"></label>
+      <label>Action taken<input id="f-action" value="${esc(j.action)}"></label>
+      <label>Spare parts used<input id="f-parts" value="${esc(j.parts)}"></label>
+      <div class="fieldlbl">Status</div>
+      <div class="opts" id="f-status">${STATUSES.map((t) => `<label class="opt"><input type="radio" name="js" value="${t}" ${j.status === t ? 'checked' : ''}><span>${t}</span></label>`).join('')}</div>
+    </div>
+    <footer><button class="btn" data-act="mclose">Cancel</button><button class="btn primary" data-act="savejob">${idx >= 0 ? 'Save changes' : 'Add job'}</button></footer>`);
+}
+
+function calcDowntime() {
+  if (dtManual) return;
+  const s = $('#f-start').value, e = $('#f-end').value;
+  if (!s || !e) return;
+  const [sh, sm] = s.split(':').map(Number), [eh, em] = e.split(':').map(Number);
+  let mins = (eh * 60 + em) - (sh * 60 + sm);
+  if (mins < 0) mins += 24 * 60; // finished after midnight
+  $('#f-down').value = Math.round(mins / 6) / 10;
+}
+
+function saveJobFromModal() {
+  const type = ($('input[name=jt]:checked') || {}).value || '';
+  const status = ($('input[name=js]:checked') || {}).value || '';
+  const sel = $('#f-eq').value;
+  const equipment = sel === '__other' ? $('#f-other').value.trim() : sel;
+  const description = $('#f-desc').value.trim();
+  const bad = [];
+  if (!type) bad.push('#f-type'); if (!equipment) bad.push(sel === '__other' ? '#f-other' : '#f-eq');
+  if (!description) bad.push('#f-desc'); if (!status) bad.push('#f-status');
+  document.querySelectorAll('.invalid').forEach((el) => el.classList.remove('invalid'));
+  if (bad.length) {
+    bad.forEach((s) => $(s).classList.add('invalid'));
+    $(bad[0]).scrollIntoView({ block: 'center', behavior: 'smooth' });
+    toast('Please fill the highlighted fields'); return;
+  }
+  const dn = $('#f-down').value;
+  const job = {
+    id: editIdx >= 0 ? S.draft.jobs[editIdx].id : uid(),
+    type, equipment, description, status,
+    start: $('#f-start').value, end: $('#f-end').value,
+    downtime: dn === '' ? '' : Math.max(0, Number(dn)),
+    machineHours: $('#f-mh').value === '' ? '' : Math.max(0, Number($('#f-mh').value)),
+    mechanics: $('#f-mech').value.trim(),
+    cause: $('#f-cause').value.trim(), action: $('#f-action').value.trim(), parts: $('#f-parts').value.trim()
+  };
+  if (editIdx >= 0) S.draft.jobs[editIdx] = job; else S.draft.jobs.push(job);
+  save(); closeModal(); render();
+}
+
+let updId = null;
+function openUpdateModal(id) {
+  const j = allJobs().find((x) => x.id === id); if (!j) return;
+  updId = id;
+  openModal(`
+    <header>Update job</header>
+    <div class="scroll">
+      <div class="job"><div class="eq">${esc(j.equipment)}</div><div class="d">${esc(j.description)}</div><div class="m">${esc(j.date)} · ${esc(j.type)}</div></div>
+      <div class="fieldlbl">New status</div>
+      <div class="opts">${STATUSES.map((t) => `<label class="opt"><input type="radio" name="us" value="${t}" ${j.status === t ? 'checked' : ''}><span>${t}</span></label>`).join('')}</div>
+      <label>Note (what was done, what is still needed)<textarea id="u-note"></textarea></label>
+    </div>
+    <footer><button class="btn" data-act="mclose">Cancel</button><button class="btn primary" data-act="saveupd">Save</button></footer>`);
+}
+
+function saveUpdate() {
+  const status = ($('input[name=us]:checked') || {}).value;
+  const note = $('#u-note').value.trim();
+  const date = todayStr();
+  const entry = note ? date + ': ' + note : '';
+  const append = (old) => entry ? (old ? old + ' | ' + entry : entry) : (old || '');
+  const lq = S.queue.find((q) => q.kind === 'job' && q.status === 'pending' && q.job.id === updId);
+  if (lq) { lq.job.status = status; lq.job.action = append(lq.job.action); }
+  else S.queue.push({ qid: uid(), kind: 'update', owner: S.user.name, status: 'pending', createdAt: Date.now(), upd: { jobId: updId, status, note, date } });
+  const sj = S.data.jobs.find((j) => j.id === updId);
+  if (sj) { sj.status = status; sj.action = append(sj.action); sj.completed = status === 'Completed' ? date : ''; }
+  save(); closeModal(); render(); toast('Saved on phone'); sync();
+}
+
+/* ============ actions ============ */
+async function doLogin() {
+  const name = $('#ln').value.trim(), pin = $('#lp').value.trim();
+  if (!name || !pin) { $('#lerr').textContent = 'Enter your name and PIN.'; return; }
+  const btn = $('#lgo'); btn.disabled = true; btn.textContent = 'Signing in…';
+  try {
+    const res = await api({ action: 'sync', name, pin });
+    if (!res.ok) { UI.loginErr = res.error || 'Could not sign in.'; S.lastLogin = name; render(); return; }
+    S.user = { name: res.user.name, pin };
+    S.lastLogin = res.user.name;
+    S.machines = res.machines || [];
+    S.data = { jobs: res.data.jobs || [], at: Date.now() };
+    UI.loginErr = ''; UI.failed = false;
+    save(); render(); sync();
+  } catch (e) {
+    UI.loginErr = e.config ? e.message : 'No connection. The first sign-in needs internet.';
+    S.lastLogin = name; render();
+  }
+}
+
+function submitShift() {
+  const d = S.draft;
+  if (!d.date || !d.shift) {
+    if (!d.date) $('#sdate').classList.add('invalid');
+    if (!d.shift) $('#sshift').classList.add('invalid');
+    toast('Choose the date and shift first'); window.scrollTo(0, 0); return;
+  }
+  d.jobs.forEach((j) => {
+    S.queue.push({
+      qid: uid(), kind: 'job', owner: S.user.name, status: 'pending', createdAt: Date.now(),
+      job: Object.assign({}, j, { date: d.date, shift: d.shift })
+    });
+  });
+  const n = d.jobs.length;
+  d.jobs = [];
+  save(); render();
+  toast(n + ' job' + (n === 1 ? '' : 's') + ' saved on phone');
+  sync();
+}
+
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const a = el.dataset.act;
+  switch (a) {
+    case 'login': doLogin(); break;
+    case 'sync': if (!UI.syncing) { toast('Uploading…'); sync(); } break;
+    case 'tab': UI.tab = el.dataset.tab; render(); window.scrollTo(0, 0); break;
+    case 'addjob': openJobModal(-1); break;
+    case 'editjob': openJobModal(Number(el.dataset.i)); break;
+    case 'deljob': if (confirm('Remove this job from the list?')) { S.draft.jobs.splice(Number(el.dataset.i), 1); save(); render(); } break;
+    case 'savejob': saveJobFromModal(); break;
+    case 'mclose': closeModal(); break;
+    case 'submit': submitShift(); break;
+    case 'mach': UI.open[el.dataset.m] = !UI.open[el.dataset.m]; render(); break;
+    case 'range': UI.range = Number(el.dataset.r); render(); break;
+    case 'upd': openUpdateModal(el.dataset.id); break;
+    case 'saveupd': saveUpdate(); break;
+    case 'delq': if (confirm('Delete this item? It will not be uploaded.')) { S.queue = S.queue.filter((q) => q.qid !== el.dataset.q); save(); render(); } break;
+    case 'logout': {
+      const p = pendingCount();
+      const msg = p ? `You have ${p} item(s) not uploaded yet. Logging out will delete them. Log out anyway?` : 'Log out of this phone?';
+      if (confirm(msg)) { const keep = S.user.name; S = blank(); S.lastLogin = keep; S.draft.date = todayStr(); save(); UI.loginErr = ''; render(); }
+      break;
+    }
+  }
+});
+
+document.addEventListener('change', (e) => {
+  const t = e.target;
+  if (t.id === 'sdate') { S.draft.date = t.value; t.classList.remove('invalid'); save(); }
+  else if (t.id === 'sshift') { S.draft.shift = t.value; t.classList.remove('invalid'); save(); }
+  else if (t.id === 'f-eq') { $('#f-other-wrap').style.display = t.value === '__other' ? 'block' : 'none'; }
+});
+document.addEventListener('input', (e) => {
+  const id = e.target.id;
+  if (id === 'f-start' || id === 'f-end') calcDowntime();
+  else if (id === 'f-down') dtManual = e.target.value !== '';
+});
+document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.id === 'lp') doLogin(); });
+
+/* ============ lifecycle ============ */
+window.addEventListener('online', () => { UI.online = true; render(); sync(); });
+window.addEventListener('offline', () => { UI.online = false; render(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && S.user && navigator.onLine) {
+    const stale = !S.data.at || Date.now() - S.data.at > 10 * 60 * 1000;
+    if (pendingCount() || stale) sync();
+  }
+});
+setInterval(() => { if (S.user && navigator.onLine && pendingCount() && !UI.syncing) sync(); }, 45000);
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { });
+
+render();
+if (S.user && navigator.onLine) sync();
+</script>
+</body>
+</html>
