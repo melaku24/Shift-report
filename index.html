@@ -22,11 +22,11 @@ header.top h1{margin:0;font-size:18px;line-height:1.1}
 header.top small{opacity:.75;font-size:13px}
 main{padding:12px 16px 110px;max-width:640px;margin:0 auto}
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:5;background:#fff;border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
-nav.tabs button{flex:1;border:0;background:none;padding:10px 4px 9px;font-size:13px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
+nav.tabs button{flex:1;min-width:0;border:0;background:none;padding:10px 2px 9px;font-size:12px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:2px;position:relative;white-space:nowrap}
 nav.tabs button .ic{font-size:20px;line-height:1}
 nav.tabs button.on{color:var(--navy);font-weight:600}
-nav.tabs button.on::before{content:"";position:absolute;top:0;left:25%;right:25%;height:3px;background:var(--amber);border-radius:0 0 3px 3px}
-.badge{position:absolute;top:4px;left:calc(50% + 8px);background:var(--red);color:#fff;border-radius:10px;font-size:11px;min-width:18px;padding:0 5px;line-height:18px;font-weight:600}
+nav.tabs button.on::before{content:"";position:absolute;top:0;left:20%;right:20%;height:3px;background:var(--amber);border-radius:0 0 3px 3px}
+.badge{position:absolute;top:4px;left:calc(50% + 6px);background:var(--red);color:#fff;border-radius:10px;font-size:11px;min-width:18px;padding:0 5px;line-height:18px;font-weight:600}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:0 0 12px}
 .card h2{margin:0 0 10px;font-size:15px;color:var(--navy)}
 label{display:block;font-size:14px;color:var(--muted);margin:0 0 12px}
@@ -53,13 +53,16 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--amber);outline-o
 .job .eq{font-weight:600}
 .job .d{margin:4px 0;font-size:14px;white-space:pre-wrap;word-break:break-word}
 .job .m{font-size:12.5px;color:var(--muted)}
+.job.late{border-color:#e6b0b0;background:#fffafa}
 .tag{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:10px;background:#eef1f6;color:#445}
 .tag.bd{background:var(--redbg);color:var(--red)}
 .tag.ongoing{background:var(--amberbg);color:var(--amberdk)}
 .tag.waiting{background:#fde7d3;color:#9a3d00}
 .tag.done{background:var(--greenbg);color:var(--green)}
 .tag.local{background:#e3edff;color:#1c4fb5}
-.actions{display:flex;gap:8px;margin-top:8px}
+.tag.pri-urgent,.tag.over{background:var(--red);color:#fff}
+.tag.pri-high{background:#fde7d3;color:#9a3d00}
+.actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
 .mach{padding:0;overflow:hidden}
 .mach>button.head{width:100%;text-align:left;border:0;background:none;padding:14px;display:block}
 .mach .nm{font-weight:700;font-size:16px}
@@ -71,7 +74,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--amber);outline-o
 .chip.warn{background:var(--amberbg);color:var(--amberdk)}
 .chip.good{background:var(--greenbg);color:var(--green)}
 .mach .body{padding:0 14px 14px;border-top:1px solid var(--line)}
-.mach h3{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 8px}
+.mach h3,h3.sec{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 8px}
 .seg{display:flex;background:#e4e8ef;border-radius:10px;padding:3px;gap:3px}
 .seg button{flex:1;border:0;background:none;border-radius:8px;padding:7px;font-size:14px;color:var(--muted)}
 .seg button.on{background:#fff;color:var(--navy);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.12)}
@@ -116,6 +119,15 @@ const KEY = 'shiftreport_v1';
 const TYPES = ['Breakdown', 'Planned maintenance', 'Unplanned maintenance', 'Concern'];
 const STATUSES = ['Completed', 'Ongoing', 'Waiting for parts'];
 const SHIFTS = ['Morning', 'Afternoon', 'Night'];
+// Fallback copy. The real list comes from the server (GROUPS in Code.gs) and is cached on the phone.
+const GROUPS_DEFAULT = ['Engine', 'PTO', 'Compressor', 'Cabin', 'Final Drive', 'Swivel', 'Hyd System', 'Differential',
+  'Rotation Motor', 'Body/Chassis', 'Transmission or Transfer Gears', 'Hammer Head', 'Brake System', 'Hubs',
+  'Fire Suppression System', 'Electrical System', 'Torque Converter', 'Auto Lube System', 'Undercarriage', 'Cylinders',
+  'Fuel System', 'Various & Minor Repairs', 'Pumps', 'Suspension', 'Air System Compressor', 'Cooler Pack Radiator',
+  'Transmission', 'Front/Middle/Rear Axles', 'Drive Shaft', 'Mast', 'Warranty', 'Steering System'];
+// Switched off for now. To turn on later, add to config.js:  FEATURES: { workOrders: true, approvals: true }
+const FEATURES = Object.assign({ workOrders: false, approvals: false }, (window.APP_CONFIG || {}).FEATURES);
+const PRI_RANK = { Urgent: 0, High: 1, Normal: 2, Low: 3 };
 const BATCH = 40;
 
 const $ = (s, el) => (el || document).querySelector(s);
@@ -126,12 +138,14 @@ const todayStr = () => ymd(new Date());
 const daysAgoStr = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return ymd(d); };
 const norm = (s) => String(s == null ? '' : s).trim().toLowerCase().replace(/\s+/g, ' ');
 const uid = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
-const statusClass = (s) => s === 'Completed' ? 'done' : s === 'Ongoing' ? 'ongoing' : 'waiting';
+const statusClass = (s) => s === 'Completed' ? 'done' : s === 'Ongoing' || s === 'In progress' ? 'ongoing' : s === 'Waiting for parts' ? 'waiting' : '';
 const fmtHrs = (n) => (Math.round(n * 10) / 10).toString();
+const hasVal = (v) => v !== '' && v != null;
+const isClosedWo = (s) => s === 'Completed' || s === 'Cancelled';
 
 /* ============ state ============ */
 function blank() {
-  return { user: null, machines: [], data: { jobs: [], at: null }, draft: { date: '', shift: '', jobs: [] }, queue: [], lastLogin: '' };
+  return { user: null, machines: [], groups: GROUPS_DEFAULT, data: { jobs: [], wos: [], at: null }, draft: { date: '', shift: '', jobs: [] }, queue: [], lastLogin: '' };
 }
 let S;
 try { S = Object.assign(blank(), JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { S = blank(); }
@@ -141,8 +155,14 @@ const UI = { tab: 'report', open: {}, range: 30, online: navigator.onLine, faile
 
 if (!S.draft.date || (S.draft.jobs.length === 0 && S.draft.date !== todayStr())) S.draft.date = todayStr();
 
+const isSup = () => (S.user && S.user.role) !== 'Mechanic';
+const wos = () => S.data.wos || [];
 const pendingItems = () => S.queue.filter((q) => q.status === 'pending' && S.user && q.owner === S.user.name);
 const pendingCount = () => pendingItems().length;
+const pendingApprovals = () => {
+  const queued = new Set(S.queue.filter((x) => x.kind === 'approval' && x.status === 'pending').map((x) => x.ap.jobId));
+  return S.data.jobs.filter((j) => j.approval === 'Pending' && j.role === 'Mechanic' && norm(j.supervisor) === norm(S.user.name) && !queued.has(j.id));
+};
 
 /* ============ network ============ */
 async function api(body) {
@@ -163,29 +183,42 @@ async function api(body) {
   } finally { clearTimeout(timer); }
 }
 
+function applyServerData(res) {
+  S.machines = res.machines || S.machines;
+  if (res.groups && res.groups.length) S.groups = res.groups;
+  S.data = { jobs: res.data.jobs || [], wos: res.data.workorders || [], at: Date.now() };
+  if (S.user && res.user) { S.user.role = res.user.role; S.user.hasTeam = !!res.user.hasTeam; }
+}
+
 async function sync() {
   if (!S.user || UI.syncing) return;
-  const jobs = pendingItems().filter((q) => q.kind === 'job').slice(0, BATCH);
-  const ups = pendingItems().filter((q) => q.kind === 'update').slice(0, BATCH);
+  const pend = pendingItems();
+  const by = (k) => pend.filter((q) => q.kind === k).slice(0, BATCH);
+  const jobs = by('job'), ups = by('update'), wus = by('wo'), aps = by('approval');
   UI.syncing = true; render();
   let progressed = 0;
   try {
     const res = await api({
       action: 'sync', name: S.user.name, pin: S.user.pin,
       jobs: jobs.map((q) => q.job),
-      updates: ups.map((q) => Object.assign({ qid: q.qid }, q.upd))
+      updates: ups.map((q) => Object.assign({ qid: q.qid }, q.upd)),
+      woUpdates: wus.map((q) => Object.assign({ qid: q.qid }, q.wu)),
+      approvals: aps.map((q) => Object.assign({ qid: q.qid }, q.ap))
     });
     UI.failed = false;
     if (!res.ok) {
       if (res.code === 'AUTH') { UI.loginErr = res.error || 'Please sign in again.'; S.lastLogin = S.user.name; S.user = null; }
       else toast(res.error || 'Server error');
     } else {
-      const jr = {}; (res.results.jobs || []).forEach((r) => { jr[r.id] = r; });
-      const ur = {}; (res.results.updates || []).forEach((r) => { ur[r.qid] = r; });
-      jobs.forEach((q) => { const r = jr[q.job.id]; if (r) { q.status = r.ok ? 'sent' : 'error'; q.error = r.error || ''; q.sentAt = Date.now(); progressed++; } });
-      ups.forEach((q) => { const r = ur[q.qid]; if (r) { q.status = r.ok ? 'sent' : 'error'; q.error = r.error || ''; q.sentAt = Date.now(); progressed++; } });
-      S.machines = res.machines || S.machines;
-      S.data = { jobs: res.data.jobs || [], at: Date.now() };
+      const idx = (arr, key) => { const m = {}; (arr || []).forEach((r) => { m[r[key]] = r; }); return m; };
+      const mark = (q, r) => { if (r) { q.status = r.ok ? 'sent' : 'error'; q.error = r.error || ''; q.sentAt = Date.now(); progressed++; } };
+      const jr = idx(res.results.jobs, 'id'), ur = idx(res.results.updates, 'qid');
+      const wr = idx(res.results.woUpdates, 'qid'), ar = idx(res.results.approvals, 'qid');
+      jobs.forEach((q) => mark(q, jr[q.job.id]));
+      ups.forEach((q) => mark(q, ur[q.qid]));
+      wus.forEach((q) => mark(q, wr[q.qid]));
+      aps.forEach((q) => mark(q, ar[q.qid]));
+      applyServerData(res);
       const sent = S.queue.filter((q) => q.status === 'sent').sort((a, b) => b.sentAt - a.sentAt);
       const drop = new Set(sent.slice(30).map((q) => q.qid));
       S.queue = S.queue.filter((q) => !drop.has(q.qid));
@@ -206,6 +239,15 @@ function toast(msg) {
 }
 
 /* ============ rendering ============ */
+function tabList() {
+  const t = [['report', '📝', 'Report']];
+  if (FEATURES.workOrders) t.push(['wo', '📋', 'Work orders']);
+  t.push(['machines', '🔧', 'Machines']);
+  if (FEATURES.approvals && isSup() && S.user.hasTeam) t.push(['approvals', '✅', 'Approvals']);
+  t.push(['sent', '📤', 'Sent']);
+  return t;
+}
+
 function render() {
   const y = window.scrollY;
   if (!S.user) { renderLogin(); return; }
@@ -218,15 +260,18 @@ function render() {
   else pill = '<button class="pill ok" data-act="sync">Online</button>';
 
   const errCount = S.queue.filter((q) => q.status === 'error' && q.owner === S.user.name).length;
-  const tabs = [['report', '📝', 'Report'], ['machines', '🔧', 'My machines'], ['sent', '📤', 'Sent']];
-  const body = UI.tab === 'report' ? tabReport() : UI.tab === 'machines' ? tabMachines() : tabSent();
+  const tabs = tabList();
+  if (!tabs.some((t) => t[0] === UI.tab)) UI.tab = 'report';
+  const apN = FEATURES.approvals && isSup() && S.user.hasTeam ? pendingApprovals().length : 0;
+  const body = { report: tabReport, wo: tabWO, machines: tabMachines, approvals: tabApprovals, sent: tabSent }[UI.tab]();
+  const badge = (k) => k === 'sent' ? pend + errCount : k === 'approvals' ? apN : 0;
 
   $('#app').innerHTML = `
-    <header class="top"><div><h1>Shift Report</h1><small>${esc(S.user.name)}</small></div>${pill}</header>
+    <header class="top"><div><h1>Shift Report</h1><small>${esc(S.user.name)}${isSup() ? '' : ' · Mechanic'}</small></div>${pill}</header>
     <main>${body}</main>
     <nav class="tabs">${tabs.map(([k, ic, lb]) => `
       <button data-act="tab" data-tab="${k}" class="${UI.tab === k ? 'on' : ''}"><span class="ic">${ic}</span>${lb}
-      ${k === 'sent' && (pend + errCount) ? `<span class="badge">${pend + errCount}</span>` : ''}</button>`).join('')}
+      ${badge(k) ? `<span class="badge">${badge(k)}</span>` : ''}</button>`).join('')}
     </nav>`;
   window.scrollTo(0, y);
 }
@@ -244,14 +289,23 @@ function renderLogin() {
     </div>`;
 }
 
-function jobCard(j, idx) {
+function metaOf(j, extra) {
   const time = (j.start || j.end) ? `${esc(j.start || '?')}–${esc(j.end || '?')}` : '';
-  const down = j.downtime !== '' && j.downtime != null ? `${fmtHrs(Number(j.downtime))} h downtime` : '';
+  return [extra, time,
+    hasVal(j.downtime) ? `${fmtHrs(Number(j.downtime))} h downtime` : '',
+    hasVal(j.machineHours) ? `${fmtHrs(Number(j.machineHours))} machine h` : '',
+    j.group ? esc(j.group) : '',
+    j.wo ? 'WO ' + esc(j.wo) : '',
+    j.mechanics ? 'Mechanic: ' + esc(j.mechanics) : '',
+    j.cause ? 'Cause: ' + esc(j.cause) : ''].filter(Boolean).join(' · ');
+}
+
+function jobCard(j, idx) {
   return `<div class="job">
     <div class="t"><div><div class="eq">${esc(j.equipment)}</div></div>
       <div><span class="tag ${j.type === 'Breakdown' ? 'bd' : ''}">${esc(j.type)}</span> <span class="tag ${statusClass(j.status)}">${esc(j.status)}</span></div></div>
     <div class="d">${esc(j.description)}</div>
-    <div class="m">${[time, down, j.machineHours !== '' && j.machineHours != null ? fmtHrs(Number(j.machineHours)) + ' machine h' : '', j.mechanics ? 'Mechanic: ' + esc(j.mechanics) : '', j.cause ? 'Cause: ' + esc(j.cause) : ''].filter(Boolean).join(' · ')}</div>
+    <div class="m">${metaOf(j, '')}</div>
     <div class="actions"><button class="btn small" data-act="editjob" data-i="${idx}">Edit</button>
       <button class="btn small danger" data-act="deljob" data-i="${idx}">Remove</button></div></div>`;
 }
@@ -270,15 +324,53 @@ function tabReport() {
       <button class="btn add" data-act="addjob">＋ Add job</button>
     </section>
     <button class="btn primary big" data-act="submit" ${n ? '' : 'disabled'}>Submit shift (${n} job${n === 1 ? '' : 's'})</button>
+    ${isSup() ? '' : '<p class="note" style="text-align:center;margin-top:10px">Your reports go to your supervisor for approval.</p>'}
     <p class="note" style="text-align:center;margin-top:10px">No signal? Submit anyway. It is saved on this phone and uploads by itself later.</p>`;
+}
+
+/* ---- work orders ---- */
+function woCard(w, actions) {
+  const today = todayStr();
+  const late = !isClosedWo(w.status) && w.due && w.due < today;
+  const pri = String(w.priority || 'Normal');
+  return `<div class="job ${late ? 'late' : ''}">
+    <div class="t"><div class="eq">${esc(w.wo)}</div>
+      <div><span class="tag pri-${esc(pri.toLowerCase())}">${esc(pri)}</span> <span class="tag ${statusClass(w.status)}">${esc(w.status)}</span></div></div>
+    <div class="eq">${esc(w.equipment)}${w.group ? ' · ' + esc(w.group) : ''}</div>
+    <div class="d">${esc(w.description)}</div>
+    <div class="m">${[w.due ? 'Due ' + esc(w.due) : '', w.assigned ? 'Assigned: ' + esc(w.assigned) : '', w.closed ? 'Closed ' + esc(w.closed) : ''].filter(Boolean).join(' · ')}
+      ${late ? ' <span class="tag over">Overdue</span>' : ''}</div>
+    ${w.notes ? `<div class="m" style="margin-top:4px">Notes: ${esc(w.notes)}</div>` : ''}
+    ${actions ? `<div class="actions"><button class="btn small primary" data-act="wowork" data-wo="${esc(w.wo)}">Report work</button>
+      <button class="btn small" data-act="wostat" data-wo="${esc(w.wo)}">Set status</button></div>` : ''}</div>`;
+}
+
+function tabWO() {
+  const today = todayStr();
+  const all = wos();
+  const open = all.filter((w) => !isClosedWo(w.status)).sort((a, b) => {
+    const ao = a.due && a.due < today ? 0 : 1, bo = b.due && b.due < today ? 0 : 1;
+    if (ao !== bo) return ao - bo;
+    const pr = (a.priority in PRI_RANK ? PRI_RANK[a.priority] : 2) - (b.priority in PRI_RANK ? PRI_RANK[b.priority] : 2);
+    if (pr) return pr;
+    return (a.due || '9999') < (b.due || '9999') ? -1 : 1;
+  });
+  const done = all.filter((w) => isClosedWo(w.status)).sort((a, b) => ((a.closed || '') < (b.closed || '') ? 1 : -1));
+  const late = open.filter((w) => w.due && w.due < today).length;
+  const upd = S.data.at ? new Date(S.data.at).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'never';
+  return `
+    <div class="sum"><span>Open: <b>${open.length}</b>${late ? ` · <b style="color:var(--red)">${late} overdue</b>` : ''}</span><span>Updated ${esc(upd)}</span></div>
+    ${open.length ? open.map((w) => woCard(w, true)).join('') : '<section class="card"><p class="empty">No open work orders. 👍</p></section>'}
+    ${done.length ? `<h3 class="sec">Recently closed (${done.length})</h3>${done.map((w) => woCard(w, false)).join('')}` : ''}
+    <p class="note">Work orders are added by the office. Tap <b>Report work</b> to add a job report linked to the work order.</p>`;
 }
 
 /* ---- machines ---- */
 function allJobs() {
   const ids = new Set(S.data.jobs.map((j) => j.id));
   const local = S.queue.filter((q) => q.kind === 'job' && q.status === 'pending' && q.owner === S.user.name && !ids.has(q.job.id))
-    .map((q) => Object.assign({}, q.job, { supervisor: S.user.name, local: true }));
-  return local.concat(S.data.jobs);
+    .map((q) => Object.assign({}, q.job, { supervisor: S.user.name, reportedBy: S.user.name, local: true }));
+  return local.concat(S.data.jobs).filter((j) => j.approval !== 'Rejected');
 }
 
 function machineView(name, area, jobs) {
@@ -290,13 +382,13 @@ function machineView(name, area, jobs) {
 }
 
 function histRow(j, withUpdate) {
-  const down = j.downtime !== '' && j.downtime != null ? `${fmtHrs(Number(j.downtime))} h` : '';
+  const pending = j.approval === 'Pending';
   return `<div class="job">
     <div class="t"><div class="m">${esc(j.date)} · ${esc(j.shift)}</div>
-      <div><span class="tag ${j.type === 'Breakdown' ? 'bd' : ''}">${esc(j.type)}</span> <span class="tag ${statusClass(j.status)}">${esc(j.status)}</span>${j.local ? ' <span class="tag local">Not uploaded</span>' : ''}</div></div>
+      <div><span class="tag ${j.type === 'Breakdown' ? 'bd' : ''}">${esc(j.type)}</span> <span class="tag ${statusClass(j.status)}">${esc(j.status)}</span>${j.local ? ' <span class="tag local">Not uploaded</span>' : ''}${pending ? ' <span class="tag ongoing">Pending approval</span>' : ''}</div></div>
     <div class="d">${esc(j.description)}</div>
-    <div class="m">${[j.supervisor ? esc(j.supervisor) : '', down ? down + ' downtime' : '', j.machineHours !== '' && j.machineHours != null ? fmtHrs(Number(j.machineHours)) + ' machine h' : '', j.mechanics ? 'Mechanic: ' + esc(j.mechanics) : '', j.cause ? 'Cause: ' + esc(j.cause) : '', j.action ? 'Action: ' + esc(j.action) : ''].filter(Boolean).join(' · ')}</div>
-    ${withUpdate ? `<div class="actions"><button class="btn small" data-act="upd" data-id="${esc(j.id)}">Update status</button></div>` : ''}</div>`;
+    <div class="m">${metaOf(j, j.reportedBy ? esc(j.reportedBy) : '')}${j.action ? ' · Action: ' + esc(j.action) : ''}</div>
+    ${withUpdate && isSup() ? `<div class="actions"><button class="btn small" data-act="upd" data-id="${esc(j.id)}">Update status</button></div>` : ''}</div>`;
 }
 
 function tabMachines() {
@@ -338,17 +430,43 @@ function machineCard(v) {
     </div>` : ''}</section>`;
 }
 
+/* ---- approvals (supervisors) ---- */
+function tabApprovals() {
+  const list = pendingApprovals().sort((a, b) => (a.date < b.date ? 1 : -1));
+  return `
+    <div class="sum"><span>Waiting for your approval: <b>${list.length}</b></span></div>
+    ${list.length ? list.map((j) => `<div class="job">
+        <div class="t"><div><div class="eq">${esc(j.equipment)}</div><div class="m">${esc(j.date)} · ${esc(j.shift)} · by <b>${esc(j.reportedBy)}</b></div></div>
+          <div><span class="tag ${j.type === 'Breakdown' ? 'bd' : ''}">${esc(j.type)}</span> <span class="tag ${statusClass(j.status)}">${esc(j.status)}</span></div></div>
+        <div class="d">${esc(j.description)}</div>
+        <div class="m">${metaOf(j, '')}${j.action ? ' · Action: ' + esc(j.action) : ''}</div>
+        <div class="actions"><button class="btn small primary" data-act="approve" data-id="${esc(j.id)}">Approve</button>
+          <button class="btn small danger" data-act="reject" data-id="${esc(j.id)}">Reject</button></div></div>`).join('')
+      : '<section class="card"><p class="empty">Nothing waiting. 👍</p></section>'}
+    <p class="note">Approved reports count in your machine backlog and update the linked work order. Rejected reports are returned to the mechanic with your reason.</p>`;
+}
+
 /* ---- sent ---- */
 function tabSent() {
   const mine = S.queue.filter((q) => q.owner === S.user.name).sort((a, b) => b.createdAt - a.createdAt);
   const pend = pendingCount();
   const rows = mine.map((q) => {
-    const j = q.kind === 'job' ? q.job : null;
-    const title = j ? `${esc(j.equipment)} · ${esc(j.type)}` : 'Status update';
-    const sub = j ? esc(j.description) : `${esc(q.upd.status)}${q.upd.note ? ' · ' + esc(q.upd.note) : ''}`;
-    const st = q.status === 'sent' ? '<span class="status-ok">✓ Uploaded</span>'
-      : q.status === 'pending' ? '<span class="status-wait">⏳ Saved on phone, waiting for signal</span>'
-        : `<span class="status-err">✗ Not accepted: ${esc(q.error)}</span>`;
+    let title, sub;
+    if (q.kind === 'job') { title = `${esc(q.job.equipment)} · ${esc(q.job.type)}`; sub = esc(q.job.description); }
+    else if (q.kind === 'update') { title = 'Status update'; sub = `${esc(q.upd.status)}${q.upd.note ? ' · ' + esc(q.upd.note) : ''}`; }
+    else if (q.kind === 'wo') { title = 'Work order ' + esc(q.wu.wo); sub = `${esc(q.wu.status)}${q.wu.note ? ' · ' + esc(q.wu.note) : ''}`; }
+    else { title = (q.ap.decision === 'Approved' ? 'Approved' : 'Rejected') + ' a report'; sub = esc(q.ap.equipment || '') + (q.ap.note ? ' · ' + esc(q.ap.note) : ''); }
+
+    let st;
+    if (q.status === 'pending') st = '<span class="status-wait">⏳ Saved on phone, waiting for signal</span>';
+    else if (q.status === 'error') st = `<span class="status-err">✗ Not accepted: ${esc(q.error)}</span>`;
+    else if (q.kind === 'job' && !isSup()) {
+      const sj = S.data.jobs.find((x) => x.id === q.job.id);
+      if (sj && sj.approval === 'Approved') st = '<span class="status-ok">✓ Approved by your supervisor</span>';
+      else if (sj && sj.approval === 'Rejected') st = `<span class="status-err">✗ Rejected${sj.approvalNote ? ': ' + esc(sj.approvalNote) : ''}</span>`;
+      else st = '<span class="status-wait">✓ Uploaded · waiting for supervisor approval</span>';
+    } else st = '<span class="status-ok">✓ Uploaded</span>';
+
     const del = q.status !== 'sent' ? `<button class="btn small danger" data-act="delq" data-q="${esc(q.qid)}">Delete</button>` : '';
     return `<div class="job"><div class="sent-row"><div><div class="eq">${title}</div><div class="d">${sub}</div>${st}
       <div class="m">${new Date(q.createdAt).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div></div>${del}</div></div>`;
@@ -356,7 +474,7 @@ function tabSent() {
   return `
     ${pend ? `<button class="btn primary" data-act="sync" style="margin-bottom:12px">Upload ${pend} waiting now</button>` : ''}
     <section class="card"><h2>Sent reports</h2>${rows || '<p class="empty">Nothing submitted yet.</p>'}</section>
-    <section class="card"><h2>Account</h2><p class="note">Signed in as <b>${esc(S.user.name)}</b></p>
+    <section class="card"><h2>Account</h2><p class="note">Signed in as <b>${esc(S.user.name)}</b> (${isSup() ? 'Supervisor' : 'Mechanic'})</p>
       <button class="btn danger" data-act="logout">Log out</button></section>`;
 }
 
@@ -376,21 +494,34 @@ window.addEventListener('popstate', () => { if (UI.modalOpen) closeModal(true); 
 
 let editIdx = -1, dtManual = false;
 
-function openJobModal(idx) {
+function setEquipmentField(name) {
+  const m = S.machines.find((x) => norm(x.name) === norm(name));
+  if (m) { $('#f-eq').value = m.name; $('#f-other-wrap').style.display = 'none'; }
+  else { $('#f-eq').value = '__other'; $('#f-other-wrap').style.display = 'block'; $('#f-other').value = name; }
+}
+
+function openJobModal(idx, prefill) {
   editIdx = idx;
-  const j = idx >= 0 ? S.draft.jobs[idx] : { type: '', equipment: '', description: '', start: '', end: '', downtime: '', machineHours: '', mechanics: '', cause: '', action: '', parts: '', status: '' };
+  const empty = { type: '', equipment: '', group: '', wo: '', description: '', start: '', end: '', downtime: '', machineHours: '', mechanics: '', cause: '', action: '', parts: '', status: '' };
+  const j = idx >= 0 ? Object.assign({}, empty, S.draft.jobs[idx]) : Object.assign({}, empty, prefill || {});
   const names = S.machines.map((m) => m.name);
   const isOther = j.equipment && !names.some((n) => norm(n) === norm(j.equipment));
-  dtManual = idx >= 0 && j.downtime !== '' && j.downtime != null;
+  dtManual = idx >= 0 && hasVal(j.downtime);
   const eqOpts = names.map((n) => `<option value="${esc(n)}" ${!isOther && norm(n) === norm(j.equipment) ? 'selected' : ''}>${esc(n)}</option>`).join('');
+  const grp = S.groups.map((g) => `<option ${g === j.group ? 'selected' : ''}>${esc(g)}</option>`).join('');
+  const open = wos().filter((w) => !isClosedWo(w.status) || w.wo === j.wo);
+  const woOpts = open.map((w) => `<option value="${esc(w.wo)}" ${w.wo === j.wo ? 'selected' : ''}>${esc(w.wo)} · ${esc(w.equipment)} · ${esc(String(w.description).slice(0, 30))}</option>`).join('')
+    + (j.wo && !open.some((w) => w.wo === j.wo) ? `<option value="${esc(j.wo)}" selected>${esc(j.wo)}</option>` : '');
   openModal(`
     <header>${idx >= 0 ? 'Edit job' : 'Add job'}</header>
     <div class="scroll">
+      ${FEATURES.workOrders ? `<label>Work order (optional)<select id="f-wo"><option value="">No work order</option>${woOpts}</select></label>` : ''}
       <div class="fieldlbl">Type of job</div>
       <div class="opts" id="f-type">${TYPES.map((t) => `<label class="opt"><input type="radio" name="jt" value="${t}" ${j.type === t ? 'checked' : ''}><span>${t}</span></label>`).join('')}</div>
       <label>Equipment
         <select id="f-eq"><option value="">Choose…</option>${eqOpts}<option value="__other" ${isOther ? 'selected' : ''}>Other (not in list)…</option></select></label>
       <label id="f-other-wrap" style="display:${isOther ? 'block' : 'none'}">Equipment name<input id="f-other" value="${isOther ? esc(j.equipment) : ''}"></label>
+      <label>Functional group<select id="f-grp"><option value="">Choose…</option>${grp}</select></label>
       <label>What happened / what was done<textarea id="f-desc">${esc(j.description)}</textarea></label>
       <div class="row">
         <label>Start time<input type="time" id="f-start" value="${esc(j.start)}"></label>
@@ -423,30 +554,37 @@ function saveJobFromModal() {
   const status = ($('input[name=js]:checked') || {}).value || '';
   const sel = $('#f-eq').value;
   const equipment = sel === '__other' ? $('#f-other').value.trim() : sel;
+  const group = $('#f-grp').value;
   const description = $('#f-desc').value.trim();
   const bad = [];
-  if (!type) bad.push('#f-type'); if (!equipment) bad.push(sel === '__other' ? '#f-other' : '#f-eq');
-  if (!description) bad.push('#f-desc'); if (!status) bad.push('#f-status');
+  if (!type) bad.push('#f-type');
+  if (!equipment) bad.push(sel === '__other' ? '#f-other' : '#f-eq');
+  if (!group) bad.push('#f-grp');
+  if (!description) bad.push('#f-desc');
+  if (!status) bad.push('#f-status');
   document.querySelectorAll('.invalid').forEach((el) => el.classList.remove('invalid'));
   if (bad.length) {
     bad.forEach((s) => $(s).classList.add('invalid'));
     $(bad[0]).scrollIntoView({ block: 'center', behavior: 'smooth' });
     toast('Please fill the highlighted fields'); return;
   }
-  const dn = $('#f-down').value;
+  const dn = $('#f-down').value, mh = $('#f-mh').value;
   const job = {
     id: editIdx >= 0 ? S.draft.jobs[editIdx].id : uid(),
-    type, equipment, description, status,
+    type, equipment, group, description, status,
+    wo: $('#f-wo') ? $('#f-wo').value : (editIdx >= 0 ? (S.draft.jobs[editIdx].wo || '') : ''),
     start: $('#f-start').value, end: $('#f-end').value,
     downtime: dn === '' ? '' : Math.max(0, Number(dn)),
-    machineHours: $('#f-mh').value === '' ? '' : Math.max(0, Number($('#f-mh').value)),
+    machineHours: mh === '' ? '' : Math.max(0, Number(mh)),
     mechanics: $('#f-mech').value.trim(),
     cause: $('#f-cause').value.trim(), action: $('#f-action').value.trim(), parts: $('#f-parts').value.trim()
   };
   if (editIdx >= 0) S.draft.jobs[editIdx] = job; else S.draft.jobs.push(job);
-  save(); closeModal(); render();
+  save(); closeModal(); UI.tab = 'report'; render();
+  if (job.wo) toast('Added to your shift report. Press Submit shift when done.');
 }
 
+/* ---- update job status (supervisors) ---- */
 let updId = null;
 function openUpdateModal(id) {
   const j = allJobs().find((x) => x.id === id); if (!j) return;
@@ -476,6 +614,55 @@ function saveUpdate() {
   save(); closeModal(); render(); toast('Saved on phone'); sync();
 }
 
+/* ---- work order status ---- */
+let woId = null;
+function openWoStatusModal(num) {
+  const w = wos().find((x) => x.wo === num); if (!w) return;
+  woId = num;
+  const allowed = isSup() ? ['In progress', 'Waiting for parts', 'Completed'] : ['In progress', 'Waiting for parts'];
+  openModal(`
+    <header>Work order ${esc(w.wo)}</header>
+    <div class="scroll">
+      <div class="job"><div class="eq">${esc(w.equipment)}</div><div class="d">${esc(w.description)}</div></div>
+      <div class="fieldlbl">Set status</div>
+      <div class="opts">${allowed.map((t) => `<label class="opt"><input type="radio" name="ws" value="${t}" ${w.status === t ? 'checked' : ''}><span>${t}</span></label>`).join('')}</div>
+      ${isSup() ? '' : '<p class="note">To finish a work order, report the job as Completed. It closes after your supervisor approves.</p>'}
+      <label>Note (optional)<textarea id="w-note"></textarea></label>
+    </div>
+    <footer><button class="btn" data-act="mclose">Cancel</button><button class="btn primary" data-act="savewo">Save</button></footer>`);
+}
+
+function saveWoStatus() {
+  const status = ($('input[name=ws]:checked') || {}).value;
+  if (!status) { toast('Choose a status'); return; }
+  const note = $('#w-note').value.trim();
+  const date = todayStr();
+  S.queue.push({ qid: uid(), kind: 'wo', owner: S.user.name, status: 'pending', createdAt: Date.now(), wu: { wo: woId, status, note, date } });
+  const w = wos().find((x) => x.wo === woId);
+  if (w) { w.status = status; w.closed = status === 'Completed' ? date : ''; }
+  save(); closeModal(); render(); toast('Saved on phone'); sync();
+}
+
+/* ---- approvals ---- */
+function queueApproval(jobId, decision, note) {
+  const j = S.data.jobs.find((x) => x.id === jobId);
+  S.queue.push({ qid: uid(), kind: 'approval', owner: S.user.name, status: 'pending', createdAt: Date.now(), ap: { jobId, decision, note, equipment: j ? j.equipment : '' } });
+  if (j) { j.approval = decision; j.approvalNote = note; }
+  save(); render(); sync();
+}
+let rejId = null;
+function openRejectModal(id) {
+  const j = S.data.jobs.find((x) => x.id === id); if (!j) return;
+  rejId = id;
+  openModal(`
+    <header>Reject report</header>
+    <div class="scroll">
+      <div class="job"><div class="eq">${esc(j.equipment)}</div><div class="d">${esc(j.description)}</div><div class="m">by ${esc(j.reportedBy)}</div></div>
+      <label>Reason (the mechanic will see this)<textarea id="r-note"></textarea></label>
+    </div>
+    <footer><button class="btn" data-act="mclose">Cancel</button><button class="btn danger" data-act="saverej">Reject</button></footer>`);
+}
+
 /* ============ actions ============ */
 async function doLogin() {
   const name = $('#ln').value.trim(), pin = $('#lp').value.trim();
@@ -484,11 +671,10 @@ async function doLogin() {
   try {
     const res = await api({ action: 'sync', name, pin });
     if (!res.ok) { UI.loginErr = res.error || 'Could not sign in.'; S.lastLogin = name; render(); return; }
-    S.user = { name: res.user.name, pin };
+    S.user = { name: res.user.name, pin, role: res.user.role, hasTeam: !!res.user.hasTeam };
     S.lastLogin = res.user.name;
-    S.machines = res.machines || [];
-    S.data = { jobs: res.data.jobs || [], at: Date.now() };
-    UI.loginErr = ''; UI.failed = false;
+    applyServerData(res);
+    UI.loginErr = ''; UI.failed = false; UI.tab = 'report';
     save(); render(); sync();
   } catch (e) {
     UI.loginErr = e.config ? e.message : 'No connection. The first sign-in needs internet.';
@@ -533,6 +719,21 @@ document.addEventListener('click', (e) => {
     case 'range': UI.range = Number(el.dataset.r); render(); break;
     case 'upd': openUpdateModal(el.dataset.id); break;
     case 'saveupd': saveUpdate(); break;
+    case 'wowork': {
+      const w = wos().find((x) => x.wo === el.dataset.wo); if (!w) break;
+      openJobModal(-1, { wo: w.wo, equipment: w.equipment, group: w.group, type: 'Planned maintenance' });
+      break;
+    }
+    case 'wostat': openWoStatusModal(el.dataset.wo); break;
+    case 'savewo': saveWoStatus(); break;
+    case 'approve': queueApproval(el.dataset.id, 'Approved', ''); toast('Approved'); break;
+    case 'reject': openRejectModal(el.dataset.id); break;
+    case 'saverej': {
+      const note = $('#r-note').value.trim();
+      if (!note) { $('#r-note').classList.add('invalid'); toast('Please give a reason'); break; }
+      closeModal(); queueApproval(rejId, 'Rejected', note); toast('Rejected');
+      break;
+    }
     case 'delq': if (confirm('Delete this item? It will not be uploaded.')) { S.queue = S.queue.filter((q) => q.qid !== el.dataset.q); save(); render(); } break;
     case 'logout': {
       const p = pendingCount();
@@ -548,6 +749,14 @@ document.addEventListener('change', (e) => {
   if (t.id === 'sdate') { S.draft.date = t.value; t.classList.remove('invalid'); save(); }
   else if (t.id === 'sshift') { S.draft.shift = t.value; t.classList.remove('invalid'); save(); }
   else if (t.id === 'f-eq') { $('#f-other-wrap').style.display = t.value === '__other' ? 'block' : 'none'; }
+  else if (t.id === 'f-wo' && t.value) {
+    // choosing a work order fills in its machine and functional group
+    const w = wos().find((x) => x.wo === t.value);
+    if (w) {
+      if (w.equipment) setEquipmentField(w.equipment);
+      if (w.group && S.groups.indexOf(w.group) >= 0) $('#f-grp').value = w.group;
+    }
+  }
 });
 document.addEventListener('input', (e) => {
   const id = e.target.id;
