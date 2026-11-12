@@ -1,9 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" translate="no">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#14213d">
+<meta name="google" content="notranslate">
 <title>Shift Report</title>
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icon-192.png">
@@ -129,6 +130,10 @@ const GROUPS_DEFAULT = ['Engine', 'PTO', 'Compressor', 'Cabin', 'Final Drive', '
 const FEATURES = Object.assign({ workOrders: false, approvals: false }, (window.APP_CONFIG || {}).FEATURES);
 const PRI_RANK = { Urgent: 0, High: 1, Normal: 2, Low: 3 };
 const BATCH = 40;
+// If a phone's browser translated the page, the shift may have been saved as "Mañana" etc. Map it back.
+const SHIFT_FIX = { 'mañana': 'Morning', 'manana': 'Morning', 'matin': 'Morning', 'matin\u00e9e': 'Morning', 'manhã': 'Morning', 'manha': 'Morning',
+  'tarde': 'Afternoon', 'après-midi': 'Afternoon', 'apres-midi': 'Afternoon', 'noche': 'Night', 'nuit': 'Night', 'noite': 'Night' };
+const fixShift = (v) => SHIFTS.includes(v) ? v : (SHIFT_FIX[String(v || '').trim().toLowerCase()] || v);
 
 const $ = (s, el) => (el || document).querySelector(s);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -153,6 +158,12 @@ function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e
 
 const UI = { tab: 'report', open: {}, range: 30, online: navigator.onLine, failed: false, syncing: false, loginErr: '', modalOpen: false };
 
+S.draft.shift = fixShift(S.draft.shift); if (!SHIFTS.includes(S.draft.shift)) S.draft.shift = '';
+S.queue.forEach((q) => {
+  if (q.kind !== 'job') return;
+  q.job.shift = fixShift(q.job.shift);
+  if (q.status === 'error' && /Bad shift|Unknown functional group/.test(q.error || '') && SHIFTS.includes(q.job.shift)) { q.status = 'pending'; q.error = ''; }
+});
 if (!S.draft.date || (S.draft.jobs.length === 0 && S.draft.date !== todayStr())) S.draft.date = todayStr();
 
 const isSup = () => (S.user && S.user.role) !== 'Mechanic';
@@ -316,7 +327,7 @@ function tabReport() {
     <section class="card"><h2>Shift details</h2>
       <div class="row">
         <label>Date<input type="date" id="sdate" value="${esc(d.date)}"></label>
-        <label>Shift<select id="sshift"><option value="">Choose…</option>${SHIFTS.map((s) => `<option ${d.shift === s ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
+        <label>Shift<select id="sshift"><option value="">Choose…</option>${SHIFTS.map((s) => `<option value="${s}" ${d.shift === s ? 'selected' : ''}>${s}</option>`).join('')}</select></label>
       </div>
     </section>
     <section class="card"><h2>Jobs this shift (${n})</h2>
@@ -508,7 +519,7 @@ function openJobModal(idx, prefill) {
   const isOther = j.equipment && !names.some((n) => norm(n) === norm(j.equipment));
   dtManual = idx >= 0 && hasVal(j.downtime);
   const eqOpts = names.map((n) => `<option value="${esc(n)}" ${!isOther && norm(n) === norm(j.equipment) ? 'selected' : ''}>${esc(n)}</option>`).join('');
-  const grp = S.groups.map((g) => `<option ${g === j.group ? 'selected' : ''}>${esc(g)}</option>`).join('');
+  const grp = S.groups.map((g) => `<option value="${esc(g)}" ${g === j.group ? 'selected' : ''}>${esc(g)}</option>`).join('');
   const open = wos().filter((w) => !isClosedWo(w.status) || w.wo === j.wo);
   const woOpts = open.map((w) => `<option value="${esc(w.wo)}" ${w.wo === j.wo ? 'selected' : ''}>${esc(w.wo)} · ${esc(w.equipment)} · ${esc(String(w.description).slice(0, 30))}</option>`).join('')
     + (j.wo && !open.some((w) => w.wo === j.wo) ? `<option value="${esc(j.wo)}" selected>${esc(j.wo)}</option>` : '');

@@ -1,6 +1,6 @@
 // Service worker: keeps the app opening with no signal.
 // Change VERSION whenever you update index.html so phones pick up the new copy.
-const VERSION = 'shift-report-v4';
+const VERSION = 'shift-report-v5';
 const SHELL = ['./', 'index.html', 'config.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', (e) => {
